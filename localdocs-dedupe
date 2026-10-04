@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+"""Move byte-identical top-level duplicates of ~/localdocs into .trash-<date>/.
+Keeps the shortest name (HTTrack's hash-suffixed copies are always longer). Never deletes.
+Usage: localdocs-dedupe [--dry-run]"""
+import hashlib, os, sys, time, collections
+root = os.path.expanduser("~/localdocs")
+os.chdir(root)
+dry = "--dry-run" in sys.argv
+groups = collections.defaultdict(list)
+n = 0
+for e in os.scandir("."):
+    if e.is_file(follow_symlinks=False) and e.name not in ("index.html", "pages.html") and not e.name.startswith("."):
+        h = hashlib.sha256()
+        with open(e.name, "rb") as f:
+            for b in iter(lambda: f.read(1 << 20), b""): h.update(b)
+        groups[(e.stat().st_size, h.digest())].append(e.name)
+        n += 1
+trash = ".trash-" + time.strftime("%Y-%m-%d")
+moved = 0
+for names in groups.values():
+    if len(names) < 2: continue
+    names.sort(key=lambda s: (len(s), s))
+    for d in names[1:]:
+        if not dry:
+            os.makedirs(trash, exist_ok=True)
+            os.rename(d, os.path.join(trash, d))
+        moved += 1
+print(f"files {n}, duplicate groups {sum(len(v)>1 for v in groups.values())}, "
+      f"{'would move' if dry else 'moved'} {moved} to {trash}, kept {n-moved}")
