@@ -1,0 +1,86 @@
+INSTALLATION AND SETUP
+======================
+
+Prerequisites
+-------------
+
+- Python 3 (required for index generation and deduplication)
+- Web server (any of the following):
+  - suckless quark (standalone binary from https://tools.suckless.org/quark/)
+  - Docker (for the containerized quark image)
+  - Python 3 http.server (standard library, zero extra installs)
+- Optional: httrack (for mirroring external documentation sites)
+
+
+1. Directory Setup
+------------------
+
+Create the target documentation folder:
+
+    mkdir -p ~/localdocs/docs
+
+Add your documentation content to ~/localdocs:
+- Unpack code doc archives into their own subdirectories.
+- Place standalone manuals, PDFs, and text files in ~/localdocs or ~/localdocs/docs.
+- Mirror websites with httrack directly into ~/localdocs.
+
+
+2. CLI Tool Installation
+------------------------
+
+Symlink the update tool into your local PATH:
+
+    mkdir -p ~/.local/bin
+    ln -sf "$(pwd)/localdocs-update" ~/.local/bin/localdocs-update
+
+Ensure ~/.local/bin is present in your shell PATH.
+
+
+3. Index Generation
+-------------------
+
+Rebuild the index pages (index.html and pages.html):
+
+    localdocs-update
+
+Or run the scripts individually on any directory:
+
+    ./localdocs-dedupe /path/to/docs
+    ./update.sh /path/to/docs
+
+
+4. Hosting
+----------
+
+Choose any server method:
+
+Method 1: Native suckless quark
+Run quark directly pointing to the documentation directory:
+
+    quark -l -h 0.0.0.0 -p 8000 -d ~/localdocs
+
+Method 2: Universal runner (serve.sh)
+Auto-detects available server backends or accepts flags:
+
+    ./serve.sh ~/localdocs
+    ./serve.sh --server python --port 8000 ~/localdocs
+    ./serve.sh --host 0.0.0.0 --port 9000 ~/localdocs
+
+Method 3: Containerized quark (Docker)
+Builds a scratch container mapped to your host user ID:
+
+    ./run-quark.sh ~/localdocs
+
+Method 4: Python standard library
+Requires no extra packages or containers:
+
+    python3 -m http.server -b 127.0.0.1 -d ~/localdocs 8000
+
+
+5. Editor Integration
+---------------------
+
+Access your documentation at http://127.0.0.1:8000/ (or your configured port).
+Bind an editor shortcut to launch documentation URLs:
+
+    xdg-open http://127.0.0.1:8000/
