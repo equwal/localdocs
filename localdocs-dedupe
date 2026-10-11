@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 """Move byte-identical top-level duplicates of ~/localdocs into .trash-<date>/.
 Keeps the shortest name (HTTrack's hash-suffixed copies are always longer). Never deletes.
-Usage: localdocs-dedupe [--dry-run]"""
+Usage: localdocs-dedupe [--dry-run] [directory]"""
 import hashlib, os, sys, time, collections
-root = os.path.expanduser("~/localdocs")
+args = [a for a in sys.argv[1:] if not a.startswith("-")]
+root = os.path.abspath(args[0]) if args else os.path.expanduser("~/localdocs")
 os.chdir(root)
 dry = "--dry-run" in sys.argv
 groups = collections.defaultdict(list)

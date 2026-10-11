@@ -1,8 +1,9 @@
 #!/bin/sh
 # Regenerate index.html (sites, docs, audio) and pages.html (loose mirrored pages)
 # from the folder contents, then check that every local link in both resolves.
-# Usage: ./update.sh        Writes via temp file + rename, so a failure never leaves a 0-byte index.
-cd ~/localdocs || exit 1
+# Usage: ./update.sh [directory]
+TARGET="${1:-$HOME/localdocs}"
+cd "$TARGET" || exit 1
 exec python3 - <<'PY'
 import os, re, sys, html, urllib.parse as up
 

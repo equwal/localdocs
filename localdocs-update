@@ -1,5 +1,6 @@
 #!/bin/sh
-# Refresh ~/localdocs: move identical duplicates to .trash-<date>/, rebuild index.html + pages.html, check links.
-# The mirrors are static HTTrack copies (httrack is not installed on g), so there is nothing to download.
+# Refresh localdocs: move identical duplicates to .trash-<date>/, rebuild index.html + pages.html, check links.
+# Usage: ./localdocs-update [directory]
 d=$(dirname "$(readlink -f "$0")")
-nice -n 10 python3 "$d/localdocs-dedupe" && nice -n 10 "$d/update.sh"
+TARGET="${1:-$HOME/localdocs}"
+nice -n 10 python3 "$d/localdocs-dedupe" "$TARGET" && nice -n 10 "$d/update.sh" "$TARGET"
