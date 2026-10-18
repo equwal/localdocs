@@ -49,15 +49,18 @@ NAMES_FILE = os.environ["NAMES_FILE"]
 NAMES = json.load(open(NAMES_FILE, encoding="utf-8")) if os.path.isfile(NAMES_FILE) else {}
 top = sorted(os.listdir("."), key=lambda s: s.lower())
 names = set(top); variants = 0
-sites, docs, audio, pages = [], [], [], []
+sites, docs, audio, pages, linked = [], [], [], [], set()
 for n in top:
     if os.path.isdir(n):
         if n in SKIP_DIRS or n.endswith("_files") or n.startswith("."): continue
         idx = os.path.join(n, "index.html")
-        if os.path.isfile(idx) and n in NAMES: sites.append(link(href(n) + "/index.html", NAMES[n]))
-        elif os.path.isfile(idx):
+        if os.path.isfile(idx):
             t = title_of(idx, n)  # HTTrack's generic "Local index - HTTrack ..." says nothing; show the folder name
-            sites.append(link(href(n) + "/index.html", disp(n) if t.startswith("Local index") else t + "  (" + disp(n) + ")"))
+            stub = t.startswith("Local index")
+            # A failed HTTrack mirror holds only a stub; its real page is the sibling <n>.html.
+            if stub and n + ".html" in names: url = href(n + ".html"); linked.add(n + ".html")
+            else: url = href(n) + "/index.html"
+            sites.append(link(url, NAMES.get(n) or (disp(n) if stub else t + "  (" + disp(n) + ")")))
     elif n.endswith(".mp3"): audio.append(link(href(n), disp(n)))
     elif n.endswith(".html") and n not in ("index.html", "pages.html"):
         m = VARIANT.match(n)
@@ -74,6 +77,7 @@ body = ("<h1>localdocs</h1><p>Local mirror of reference sites. Run <code>./updat
         f'<p><a href="pages.html">All {len(pages)} loose mirrored pages</a> ({variants} ?query variants hidden)</p>'
         + FILTER + sec("Sites", sites) + sec("Documents", docs) + sec("Audio", audio))
 write("index.html", page("localdocs", body))
+pages = [p for p in pages if p[1] not in linked]  # already listed under Sites
 pages.sort(key=lambda p: p[0].lower())
 write("pages.html", page("localdocs: all pages", '<p><a href="index.html">Home</a></p><h1>Pages</h1>' + FILTER + '<ul>'
       + "".join(link(href(n), t) for t, n in pages) + "</ul>"))
