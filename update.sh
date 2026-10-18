@@ -79,12 +79,39 @@ for n in top:
         if m and (m.group(1) + ".html") in names: variants += 1
         else: pages.append((title_of(n, n), n))
 # Folders bind-mounted from another drive: colored, with where the data really lives.
-for line in lines(os.environ["BINDS_FILE"]):
-    path, target = line.split(None, 1)
+# Each book in them is listed too; an embedded HTTrack mirror counts as one entry.
+WORK = [".epub", ".pdf", ".djvu", ".mobi", ".azw3", ".fb2", ".ps", ".chm", ".odt", ".rtf", ".doc", ".docx"]  # link preference
+def ext_li(url, name, hostdir, extra=""):
+    return (f'<li class=ext><a href="{url}">{html.escape(disp(name))}</a>{extra}'
+            f' <code>-&gt; {html.escape(disp(hostdir))}</code></li>')
+def works(path, target):
+    found = {}  # (reldir, stem) -> {ext: file}
+    for root, dirs, files in os.walk(target):
+        rel = os.path.relpath(root, target)
+        base = path if rel == "." else path + "/" + rel
+        if "hts-log.txt" in files and "index.html" in files:  # embedded site mirror
+            dirs[:] = []
+            if rel != ".": yield (os.path.basename(root).lower(), ext_li(href(base) + "/index.html", os.path.basename(root), root))
+            continue
+        dirs[:] = [d for d in dirs if d != "hts-cache"]
+        for f in files:
+            stem, ext = os.path.splitext(f)
+            if ext.lower() in WORK and os.path.exists(os.path.join(root, f)):  # skips dead symlinks
+                found.setdefault((rel, stem), {})[ext.lower()] = f
+    for (rel, stem), fmts in found.items():
+        base = path if rel == "." else path + "/" + rel
+        first, *more = sorted(fmts, key=WORK.index)
+        extra = "".join(f' <a href="{href(base + "/" + fmts[e])}">[{e[1:]}]</a>' for e in more)
+        yield (stem.lower(), ext_li(href(base + "/" + fmts[first]), stem, os.path.join(target, rel) if rel != "." else target, extra))
+BINDS = [l.split(None, 1) for l in lines(os.environ["BINDS_FILE"])]
+nworks = 0
+for path, target in BINDS:
     here = os.path.isdir(target) and os.listdir(target)
     sites.append((path.lower(), f'<li class=ext><a href="{href(path)}/">{html.escape(NAMES.get(path, path))}</a>'
                   f' <code>-&gt; {html.escape(target)}</code>'
                   + ("" if here else ' <span class=missing>drive not attached</span>') + "</li>"))
+    if here:
+        w = list(works(path, target)); nworks += len(w); sites += w
 if ajatt:
     sites.append(("ajatt", link("ajatt.html", f"AJATT: All Japanese All The Time ({len(ajatt)} pages)")))
 sites = [li for _, li in sorted(sites)]
@@ -105,15 +132,17 @@ pages = [p for p in pages if p[1] not in linked]  # already listed under Sites
 pages.sort(key=lambda p: p[0].lower())
 write("pages.html", page("localdocs: all pages", '<p><a href="index.html">Home</a></p><h1>Pages</h1>' + FILTER + '<ul>'
       + "".join(link(href(n), t) for t, n in pages) + "</ul>"))
-print(f"index.html: {len(sites)} sites, {len(docs)} docs, {len(audio)} audio; ajatt.html: {len(ajatt)}; pages.html: {len(pages)} pages")
+print(f"index.html: {len(sites)} sites ({nworks} works on other drives), {len(docs)} docs, {len(audio)} audio; ajatt.html: {len(ajatt)}; pages.html: {len(pages)} pages")
 
-# Link check on the two generated files: every local href must exist.
+# Link check on the generated files: every local href must exist.
 HREF = re.compile(r'href="([^"]*)"')
 bad = 0
 for f in ("index.html", "ajatt.html", "pages.html"):
     for u in HREF.findall(open(f, encoding="utf-8", errors="surrogateescape").read()):
         if re.match(r"[a-z]+:", u): continue
-        p = up.unquote_to_bytes(html.unescape(u).split("#")[0].split("?")[0])
+        p = os.fsdecode(up.unquote_to_bytes(html.unescape(u).split("#")[0].split("?")[0]))
+        for path, target in BINDS:  # bind mount points are empty here; check the host dir
+            if p == path or p.startswith(path + "/"): p = target + p[len(path):]; break
         if p and not os.path.exists(p):
             print("BROKEN", f, u); bad += 1
 print("link check:", "FAIL %d broken" % bad if bad else "ok, all links resolve")
