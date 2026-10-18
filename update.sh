@@ -4,9 +4,10 @@
 # Usage: ./update.sh [directory]
 # names.json next to this script maps a site folder to its display name.
 # binds next to this script lists folders that live on another drive (see run-quark.sh).
+# ajatt.txt lists AJATT folders without a sibling page; all AJATT entries go to ajatt.html.
 TARGET="${1:-$HOME/localdocs}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-export NAMES_FILE="$HERE/names.json" BINDS_FILE="$HERE/binds"
+export NAMES_FILE="$HERE/names.json" BINDS_FILE="$HERE/binds" AJATT_FILE="$HERE/ajatt.txt"
 cd "$TARGET" || exit 1
 exec python3 - <<'PY'
 import os, re, sys, html, json, urllib.parse as up
@@ -51,9 +52,14 @@ def write(name, text):
 VARIANT = re.compile(r"^(.+)[0-9a-f]{4}\.html$")  # HTTrack saves ?query variants as <base><hash>.html
 NAMES_FILE = os.environ["NAMES_FILE"]
 NAMES = json.load(open(NAMES_FILE, encoding="utf-8")) if os.path.isfile(NAMES_FILE) else {}
+def lines(f): return [l.strip() for l in open(f, encoding="utf-8") if l.strip() and not l.startswith("#")] if os.path.isfile(f) else []
+AJATT = set(lines(os.environ["AJATT_FILE"]))
+AJATT_MARK = b"alljapaneseallthetime"
+def is_ajatt(path):
+    with open(path, "rb") as f: return AJATT_MARK in f.read(65536)
 top = sorted(os.listdir("."), key=lambda s: s.lower())
 names = set(top); variants = 0
-sites, docs, audio, pages, linked = [], [], [], [], set()
+sites, ajatt, docs, audio, pages, linked = [], [], [], [], [], set()  # sites/ajatt hold (sort key, <li>)
 for n in top:
     if os.path.isdir(n):
         if n in SKIP_DIRS or n.endswith("_files") or n.startswith("."): continue
@@ -62,24 +68,26 @@ for n in top:
             t = title_of(idx, n)  # HTTrack's generic "Local index - HTTrack ..." says nothing; show the folder name
             stub = t.startswith("Local index")
             # A failed HTTrack mirror holds only a stub; its real page is the sibling <n>.html.
-            if stub and n + ".html" in names: url = href(n + ".html"); linked.add(n + ".html")
+            sib = stub and n + ".html" in names
+            if sib: url = href(n + ".html"); linked.add(n + ".html")
             else: url = href(n) + "/index.html"
-            sites.append(link(url, NAMES.get(n) or (disp(n) if stub else t + "  (" + disp(n) + ")")))
+            item = (n.lower(), link(url, NAMES.get(n) or (disp(n) if stub else t + "  (" + disp(n) + ")")))
+            (ajatt if n in AJATT or sib and is_ajatt(n + ".html") else sites).append(item)
     elif n.endswith(".mp3"): audio.append(link(href(n), disp(n)))
     elif n.endswith(".html") and n not in ("index.html", "pages.html"):
         m = VARIANT.match(n)
         if m and (m.group(1) + ".html") in names: variants += 1
         else: pages.append((title_of(n, n), n))
-# Folders bind-mounted from another drive: show where the data really lives.
-ext = []
-if os.path.isfile(os.environ["BINDS_FILE"]):
-    for line in open(os.environ["BINDS_FILE"], encoding="utf-8"):
-        if not line.strip() or line.startswith("#"): continue
-        path, target = line.split(None, 1)
-        target = target.strip()
-        here = os.path.isdir(target) and os.listdir(target)
-        ext.append(f'<li class=ext><a href="{href(path)}/">{html.escape(path)}</a> <code>-&gt; {html.escape(target)}</code>'
-                   + ("" if here else ' <span class=missing>drive not attached</span>') + "</li>")
+# Folders bind-mounted from another drive: colored, with where the data really lives.
+for line in lines(os.environ["BINDS_FILE"]):
+    path, target = line.split(None, 1)
+    here = os.path.isdir(target) and os.listdir(target)
+    sites.append((path.lower(), f'<li class=ext><a href="{href(path)}/">{html.escape(NAMES.get(path, path))}</a>'
+                  f' <code>-&gt; {html.escape(target)}</code>'
+                  + ("" if here else ' <span class=missing>drive not attached</span>') + "</li>"))
+if ajatt:
+    sites.append(("ajatt", link("ajatt.html", f"AJATT: All Japanese All The Time ({len(ajatt)} pages)")))
+sites = [li for _, li in sorted(sites)]
 if os.path.isdir("docs"):
     for n in sorted(os.listdir("docs"), key=str.lower): docs.append(link("docs/" + href(n), disp(n)))
 
@@ -89,18 +97,20 @@ FILTER = ('<p><input id=q placeholder="filter" autofocus style="width:100%;font:
           'l.hidden=!l.textContent.toLowerCase().includes(t)}</script>')
 body = ("<h1>localdocs</h1><p>Local mirror of reference sites. Run <code>./update.sh</code> to rebuild this page.</p>"
         f'<p><a href="pages.html">All {len(pages)} loose mirrored pages</a> ({variants} ?query variants hidden)</p>'
-        + FILTER + sec("On other drives", ext) + sec("Sites", sites) + sec("Documents", docs) + sec("Audio", audio))
+        + FILTER + sec("Sites", sites) + sec("Documents", docs) + sec("Audio", audio))
 write("index.html", page("localdocs", body))
+write("ajatt.html", page("localdocs: AJATT", '<p><a href="index.html">Home</a></p><h1>AJATT: All Japanese All The Time</h1>'
+      + FILTER + "<ul>" + "".join(li for _, li in sorted(ajatt, key=lambda a: a[1].lower())) + "</ul>"))
 pages = [p for p in pages if p[1] not in linked]  # already listed under Sites
 pages.sort(key=lambda p: p[0].lower())
 write("pages.html", page("localdocs: all pages", '<p><a href="index.html">Home</a></p><h1>Pages</h1>' + FILTER + '<ul>'
       + "".join(link(href(n), t) for t, n in pages) + "</ul>"))
-print(f"index.html: {len(sites)} sites, {len(docs)} docs, {len(audio)} audio; pages.html: {len(pages)} pages")
+print(f"index.html: {len(sites)} sites, {len(docs)} docs, {len(audio)} audio; ajatt.html: {len(ajatt)}; pages.html: {len(pages)} pages")
 
 # Link check on the two generated files: every local href must exist.
 HREF = re.compile(r'href="([^"]*)"')
 bad = 0
-for f in ("index.html", "pages.html"):
+for f in ("index.html", "ajatt.html", "pages.html"):
     for u in HREF.findall(open(f, encoding="utf-8", errors="surrogateescape").read()):
         if re.match(r"[a-z]+:", u): continue
         p = up.unquote_to_bytes(html.unescape(u).split("#")[0].split("?")[0])
