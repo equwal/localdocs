@@ -3,8 +3,10 @@
 # from the folder contents, then check that every local link in both resolves.
 # Usage: ./update.sh [directory]
 # names.json next to this script maps a site folder to its display name.
+# binds next to this script lists folders that live on another drive (see run-quark.sh).
 TARGET="${1:-$HOME/localdocs}"
-export NAMES_FILE="$(cd "$(dirname "$0")" && pwd)/names.json"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+export NAMES_FILE="$HERE/names.json" BINDS_FILE="$HERE/binds"
 cd "$TARGET" || exit 1
 exec python3 - <<'PY'
 import os, re, sys, html, json, urllib.parse as up
@@ -35,8 +37,10 @@ def page(title, body):
             '<style>body{font:16px/1.5 system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem;'
             'background:#fff;color:#222}h1{margin-bottom:0}h2{border-bottom:1px solid #ccc;margin-top:2rem}'
             'ul{columns:18rem;padding-left:1.2rem}li{break-inside:avoid;margin:.2rem 0}'
-            'a{color:#0645ad}@media(prefers-color-scheme:dark){body{background:#181818;color:#ddd}a{color:#8ab4f8}'
-            'h2{border-color:#444}}</style>' + body)
+            'a{color:#0645ad}.ext{border-left:4px solid #c77700;padding-left:.5rem}.ext a{color:#a35a00}'
+            '.ext code{color:#555}.missing{color:#c00;font-weight:bold}'
+            '@media(prefers-color-scheme:dark){body{background:#181818;color:#ddd}a{color:#8ab4f8}'
+            'h2{border-color:#444}.ext a{color:#f0b35a}.ext code{color:#aaa}.missing{color:#ff6b6b}}</style>' + body)
 
 def write(name, text):
     tmp = name + ".tmp"
@@ -66,6 +70,16 @@ for n in top:
         m = VARIANT.match(n)
         if m and (m.group(1) + ".html") in names: variants += 1
         else: pages.append((title_of(n, n), n))
+# Folders bind-mounted from another drive: show where the data really lives.
+ext = []
+if os.path.isfile(os.environ["BINDS_FILE"]):
+    for line in open(os.environ["BINDS_FILE"], encoding="utf-8"):
+        if not line.strip() or line.startswith("#"): continue
+        path, target = line.split(None, 1)
+        target = target.strip()
+        here = os.path.isdir(target) and os.listdir(target)
+        ext.append(f'<li class=ext><a href="{href(path)}/">{html.escape(path)}</a> <code>-&gt; {html.escape(target)}</code>'
+                   + ("" if here else ' <span class=missing>drive not attached</span>') + "</li>")
 if os.path.isdir("docs"):
     for n in sorted(os.listdir("docs"), key=str.lower): docs.append(link("docs/" + href(n), disp(n)))
 
@@ -75,7 +89,7 @@ FILTER = ('<p><input id=q placeholder="filter" autofocus style="width:100%;font:
           'l.hidden=!l.textContent.toLowerCase().includes(t)}</script>')
 body = ("<h1>localdocs</h1><p>Local mirror of reference sites. Run <code>./update.sh</code> to rebuild this page.</p>"
         f'<p><a href="pages.html">All {len(pages)} loose mirrored pages</a> ({variants} ?query variants hidden)</p>'
-        + FILTER + sec("Sites", sites) + sec("Documents", docs) + sec("Audio", audio))
+        + FILTER + sec("On other drives", ext) + sec("Sites", sites) + sec("Documents", docs) + sec("Audio", audio))
 write("index.html", page("localdocs", body))
 pages = [p for p in pages if p[1] not in linked]  # already listed under Sites
 pages.sort(key=lambda p: p[0].lower())
