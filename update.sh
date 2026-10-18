@@ -2,10 +2,12 @@
 # Regenerate index.html (sites, docs, audio) and pages.html (loose mirrored pages)
 # from the folder contents, then check that every local link in both resolves.
 # Usage: ./update.sh [directory]
+# names.json next to this script maps a site folder to its display name.
 TARGET="${1:-$HOME/localdocs}"
+export NAMES_FILE="$(cd "$(dirname "$0")" && pwd)/names.json"
 cd "$TARGET" || exit 1
 exec python3 - <<'PY'
-import os, re, sys, html, urllib.parse as up
+import os, re, sys, html, json, urllib.parse as up
 
 SKIP_DIRS = {"images", "docs"}
 TITLE = re.compile(rb"<title[^>]*>(.*?)</title>", re.I | re.S)
@@ -43,6 +45,8 @@ def write(name, text):
     os.replace(tmp, name)
 
 VARIANT = re.compile(r"^(.+)[0-9a-f]{4}\.html$")  # HTTrack saves ?query variants as <base><hash>.html
+NAMES_FILE = os.environ["NAMES_FILE"]
+NAMES = json.load(open(NAMES_FILE, encoding="utf-8")) if os.path.isfile(NAMES_FILE) else {}
 top = sorted(os.listdir("."), key=lambda s: s.lower())
 names = set(top); variants = 0
 sites, docs, audio, pages = [], [], [], []
@@ -50,7 +54,8 @@ for n in top:
     if os.path.isdir(n):
         if n in SKIP_DIRS or n.endswith("_files") or n.startswith("."): continue
         idx = os.path.join(n, "index.html")
-        if os.path.isfile(idx):
+        if os.path.isfile(idx) and n in NAMES: sites.append(link(href(n) + "/index.html", NAMES[n]))
+        elif os.path.isfile(idx):
             t = title_of(idx, n)  # HTTrack's generic "Local index - HTTrack ..." says nothing; show the folder name
             sites.append(link(href(n) + "/index.html", disp(n) if t.startswith("Local index") else t + "  (" + disp(n) + ")"))
     elif n.endswith(".mp3"): audio.append(link(href(n), disp(n)))
