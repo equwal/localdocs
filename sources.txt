@@ -1,0 +1,26 @@
+# Where re-mirrored site folders came from (httrack, 2026-10-18).
+# name url depth max_mb [extra httrack filters]
+CLtL2 https://www.cs.cmu.edu/Groups/AI/html/cltl/cltl2.html 6 100
+alexandria https://alexandria.common-lisp.dev/draft/alexandria.html 6 100
+asdf-user-manual https://asdf.common-lisp.dev/asdf.html 6 100
+cffi https://cffi.common-lisp.dev/manual/html_node/index.html 6 100
+cl-async https://orthecreedence.github.io/cl-async/documentation 6 100
+clasp https://clasp-developers.github.io/ 6 100
+edicl https://edicl.github.io/ 6 100
+fiveam https://fiveam.common-lisp.dev/docs/ 6 100
+hunchentoot https://edicl.github.io/hunchentoot/ 6 100
+john-mccarthy http://jmc.stanford.edu/ 6 100
+learnjapanese.moe https://learnjapanese.moe/ 6 100
+libxkbcommon https://xkbcommon.org/doc/current/ 6 100
+lparallel https://sharplispers.github.io/lparallel/ 6 100
+markless https://shirakumo.github.io/markless/ 6 100
+onlisp https://www.paulgraham.com/onlisptext.html 2 100
+specifications.freedesktop.org https://specifications.freedesktop.org/ 3 100
+hugo https://gohugo.io/documentation/ 3 100 +gohugo.io/* -gohugo.io/news/* -gohugo.io/showcase/*
+qownnotes.org https://www.qownnotes.org/ 2 30
+cliki https://www.cliki.net/ 2 30
+catb http://www.catb.org/~esr/ 2 30
+unix-heritage-society https://www.tuhs.org/ 2 30
+ctan.org https://ctan.org/ 1 30
+# rsync: unix-heritage-society/Archive (see binds), from wiki.tuhs.org source:unix_archive
+# www.tuhs.org::UA_Root -> .   ::UA_Applications ::UA_Distributions ::UA_Documentation ::UA_Tools ::Unix_Usenet -> Usenet
