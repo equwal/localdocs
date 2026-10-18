@@ -50,7 +50,9 @@ for n in top:
     if os.path.isdir(n):
         if n in SKIP_DIRS or n.endswith("_files") or n.startswith("."): continue
         idx = os.path.join(n, "index.html")
-        if os.path.isfile(idx): sites.append(link(href(n) + "/index.html", title_of(idx, n) + "  (" + disp(n) + ")"))
+        if os.path.isfile(idx):
+            t = title_of(idx, n)  # HTTrack's generic "Local index - HTTrack ..." says nothing; show the folder name
+            sites.append(link(href(n) + "/index.html", disp(n) if t.startswith("Local index") else t + "  (" + disp(n) + ")"))
     elif n.endswith(".mp3"): audio.append(link(href(n), disp(n)))
     elif n.endswith(".html") and n not in ("index.html", "pages.html"):
         m = VARIANT.match(n)
