@@ -24,3 +24,9 @@ unix-heritage-society https://www.tuhs.org/ 2 30
 ctan.org https://ctan.org/ 1 30
 # rsync: unix-heritage-society/Archive (see binds), from wiki.tuhs.org source:unix_archive
 # www.tuhs.org::UA_Root -> .   ::UA_Applications ::UA_Distributions ::UA_Documentation ::UA_Tools ::Unix_Usenet -> Usenet
+# Added 2026-10-18, picked from the topics in /mnt/4tb/doc.
+cl-cookbook https://lispcookbook.github.io/cl-cookbook/ 4 100
+sicp https://sarabander.github.io/sicp/html/index.xhtml 3 100
+pmeg https://bertilow.com/pmeg/ 6 100
+book-of-proof https://richardhammack.github.io/BookOfProof/ 2 100
+gentle-intro-lisp https://www.cs.cmu.edu/~dst/LispBook/ 2 100
