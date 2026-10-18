@@ -12,7 +12,16 @@ docker build \
   -t localdocs-quark . || exit 1
 
 docker rm -f localdocs-quark 2>/dev/null
+# binds: one "<path under docs> <host dir>" per line, for data too big for the docs disk.
+# The path must exist under DOCS_DIR as an empty directory to mount onto.
+set --
+if [ -f binds ]; then
+  while read -r path dir; do
+    case $path in ''|'#'*) continue ;; esac
+    set -- "$@" -v "$dir:/docs/$path:ro"
+  done < binds
+fi
 exec docker run -d --name localdocs-quark --restart unless-stopped \
   --read-only --cap-drop ALL --cap-add SYS_CHROOT --cap-add SETUID --cap-add SETGID \
   --security-opt no-new-privileges --memory 20m \
-  -v "$DOCS_DIR:/docs:ro" -p "$HOST:$PORT:8000" localdocs-quark
+  -v "$DOCS_DIR:/docs:ro" "$@" -p "$HOST:$PORT:8000" localdocs-quark
